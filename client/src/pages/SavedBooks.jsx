@@ -1,7 +1,7 @@
 import React from 'react';
+import { Jumbotron, Container, CardColumns, Card, Button } from 'react-bootstrap';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ME, REMOVE_BOOK } from '../utils/queries';
-import { Container, CardColumns, Card, Button } from 'react-bootstrap';
 import Auth from '../utils/auth';
 import { removeBookId } from '../utils/localStorage';
 
@@ -27,7 +27,16 @@ const SavedBooks = () => {
 
       await deleteBook({
         variables: { bookId: bookId },
-        refetchQueries: [{ query: GET_ME }],
+        update: (cache) => {
+          const existingData = cache.readQuery({ query: GET_ME });
+          const updatedData = {
+            me: {
+              ...existingData.me,
+              savedBooks: existingData.me.savedBooks.filter((book) => book.bookId !== bookId),
+            },
+          };
+          cache.writeQuery({ query: GET_ME, data: updatedData });
+        },
       });
 
       removeBookId(bookId);
@@ -42,6 +51,11 @@ const SavedBooks = () => {
 
   return (
     <>
+      <Jumbotron fluid className='text-light bg-dark'>
+        <Container>
+          <h1>Viewing saved books!</h1>
+        </Container>
+      </Jumbotron>
       <Container>
         <h2>
           {userData.savedBooks.length
@@ -51,28 +65,20 @@ const SavedBooks = () => {
             : 'You have no saved books!'}
         </h2>
         <CardColumns>
-          {userData.savedBooks.map((book) => {
-            return (
-              <Card key={book.bookId} border='dark'>
-                {book.image ? <Card.Img src={book.image} alt={`The cover for ${book.title}`} variant='top' /> : null}
-                <Card.Body>
-                  <Card.Title>{book.title}</Card.Title>
-                  <p className='small'>Authors: {book.authors}</p>
-                  {book.link ? (
-                    <Card.Text>
-                      <a href={book.link} target='_blank' rel='noopener noreferrer'>
-                        More Information on Google Books
-                      </a>
-                    </Card.Text>
-                  ) : null}
-                  <Card.Text>{book.description}</Card.Text>
-                  <Button className='btn-block btn-danger' onClick={() => handleDeleteBook(book.bookId)}>
-                    Delete this Book
-                  </Button>
-                </Card.Body>
-              </Card>
-            );
-          })}
+          {userData.savedBooks.map((book) => (
+            <Card key={book.bookId} border='dark'>
+              {book.image && <Card.Img src={book.image} alt={`The cover for ${book.title}`} variant='top' />}
+              <Card.Body>
+                <Card.Title>{book.title}</Card.Title>
+                <p className='small'>Authors: {book.authors}</p>
+                {book.link && <Card.Text><a href={book.link} target="_blank" rel="noopener noreferrer">More Information on Google Books</a></Card.Text>}
+                <Card.Text>{book.description}</Card.Text>
+                <Button className='btn-block btn-danger' onClick={() => handleDeleteBook(book.bookId)}>
+                  Delete this Book
+                </Button>
+              </Card.Body>
+            </Card>
+          ))}
         </CardColumns>
       </Container>
     </>
